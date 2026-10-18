@@ -1,0 +1,24 @@
+<?php
+/**
+ * Configuración de la base de datos - PLANTILLA
+ *
+ * Copia este archivo como `config.php` y ajusta los valores a tu equipo.
+ * `config.php` está en .gitignore: cada integrante tiene el suyo y las
+ * credenciales no viajan en el repositorio.
+ *
+ *     copy config.php.example config.php     (Windows)
+ *     cp   config.php.example config.php     (Linux / Mac)
+ *
+ * NOTA: XAMPP en este proyecto usa el puerto 3307, no el 3306, para no
+ * chocar con otras instalaciones de MySQL. Debe coincidir con el
+ * `port=` de xampp\mysql\bin\my.ini.
+ */
+
+return [
+    'host'     => 'localhost',
+    'puerto'   => 3307,
+    'usuario'  => 'root',
+    'password' => '',
+    'base'     => 'alimentos_tita',
+    'charset'  => 'utf8mb4',
+];
