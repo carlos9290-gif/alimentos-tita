@@ -149,7 +149,14 @@ creas el primero, queda cerrada: para crear más hay que estar dentro del panel.
 │   ├── carrito.php        eliminar_carrito.php   vaciar_carrito.php
 │   ├── pedido.php         → guardar_pedido.php
 │   ├── detalle_pedido.php    mis_pedidos.php
+│   ├── cancelar_pedido.php   (devuelve el stock al inventario)
+│   ├── pedidos.php           Operaciones de pedido compartidas
 │   └── calculadora_total.php (endpoint JSON)
+│
+├── Pago (SIMULADO)
+│   ├── pagos.php             Motor del simulador: Luhn, marcas, credenciales de prueba
+│   ├── pasarela.php          Pantalla de pago (Tarjeta / PSE / Nequi)
+│   └── procesar_pago.php     Registra el intento y mueve el pedido a Pagado
 │
 ├── Contenido
 │   ├── nosotros.php
@@ -174,6 +181,8 @@ creas el primero, queda cerrada: para crear más hay que estar dentro del panel.
 
 ```
 cliente ──< pedido ──< detalle_pedido >── producto
+   │          │                              │
+   │          └──< pago                      │
    │                                         │
    └──< carrito >────────────────────────────┤
                                              │
@@ -191,6 +200,7 @@ admin          contacto
 | `carrito` | Carrito por cliente (una fila por producto) |
 | `pedido` | Cabecera: dirección, total, estado, fecha |
 | `detalle_pedido` | Líneas del pedido con `precio_unitario` congelado |
+| `pago` | Un registro **por intento** de pago, aprobado o rechazado |
 | `contacto` | Mensajes del formulario de contacto |
 
 ### Decisiones de integridad
@@ -203,6 +213,14 @@ admin          contacto
 - **No se puede borrar** un cliente con pedidos ni un producto ya vendido: el
   historial de ventas está protegido por llaves foráneas. Para retirar un producto
   del catálogo se marca como `inactivo`.
+- **El stock se reserva al crear el pedido, no al pagarlo.** Un pedido
+  `Pendiente` ya tiene producto apartado, así que **cancelarlo devuelve el stock
+  al inventario** (`pedidos.php`). Por eso `Cancelado` es un estado terminal: el
+  stock ya volvió y revivir el pedido obligaría a descontarlo de nuevo, cuando
+  quizá ya se vendió.
+- `pago` guarda **un intento por fila**, no un pago por pedido. Un rechazo
+  seguido de un reintento exitoso deja las dos filas, que es lo que permite
+  auditar por qué un pedido tardó en pagarse.
 
 ---
 
@@ -221,13 +239,63 @@ admin          contacto
 
 ---
 
+## Pasarela de pago (simulada)
+
+**No hay dinero real de por medio.** `pagos.php` imita un entorno sandbox:
+decide aprobar o rechazar según unas credenciales de prueba fijas, igual que
+hacen Stripe, Wompi o Mercado Pago en sus ambientes de desarrollo.
+
+Flujo:
+
+```
+carrito → pedido.php → guardar_pedido.php ──→ pasarela.php ──→ procesar_pago.php ──→ detalle_pedido.php
+                       (Pendiente, stock         (Tarjeta,        (aprueba o            (estado + referencia)
+                        reservado)                PSE, Nequi)      rechaza)
+                                                      ↑                 │
+                                                      └─── rechazo ─────┘   reintento
+                                            cancelar_pedido.php → devuelve el stock
+```
+
+### Credenciales de prueba
+
+| Tarjeta | Resultado |
+|---|---|
+| `4111 1111 1111 1111` · `5555 5555 5555 4444` | Aprobada |
+| `4000 0000 0000 0002` | Fondos insuficientes |
+| `4000 0000 0000 0069` | Tarjeta vencida |
+| `4000 0000 0000 0127` | Código de seguridad incorrecto |
+| `4000 0000 0000 0119` | Error de comunicación con el banco |
+
+Vencimiento futuro y CVV de 3 dígitos. **Nequi:** `3001234567` aprueba,
+`3009999999` y `3008888888` rechazan. **PSE:** el resultado lo dice el nombre
+del banco que elijas.
+
+Cualquier otra tarjeta o celular **se rechaza**, aunque sea válido. Es
+deliberado: teclear una tarjeta real nunca debe tener recompensa.
+
+### Lo que hace que sea un pago y no un `UPDATE`
+
+- **Nunca se guarda el número de tarjeta ni el CVV**, solo marca y últimos 4.
+- **Idempotencia:** la fila del pedido se bloquea con `FOR UPDATE` antes de
+  mirar su estado. Dos pagos simultáneos del mismo pedido producen **un solo
+  cobro**; el segundo encuentra el pedido ya pagado y no escribe nada.
+- Un error de formato **no** se registra como intento: la pasarela tampoco
+  habría consultado al banco.
+- El importe sale del pedido, nunca del formulario.
+- El aviso de **MODO SIMULACIÓN** es permanente. Una pantalla que pide datos de
+  tarjeta sin advertir que es falsa tiene la misma forma que una de phishing.
+
+---
+
 ## Pendientes conocidos
 
 | Tema | Detalle |
 |---|---|
 | Envío de correo | La recuperación de contraseña no envía correo: falta configurar SMTP en `php.ini`. Mientras tanto el enlace se registra en el archivo temporal `tita_recuperacion.log` del servidor, fuera de la carpeta pública. |
-| Pasarela de pago | No implementada. Los pedidos quedan en estado `Pendiente`. |
+| Pasarela de pago | **Simulada**, no real. Para cobrar de verdad hay que integrar Wompi, Mercado Pago o PayU, lo que exige llaves de comercio y una URL pública que reciba el webhook de confirmación. |
+| Pedidos abandonados | Un pedido `Pendiente` mantiene el stock reservado hasta que alguien lo cancele. No hay caducidad automática; con volumen real haría falta liberar las reservas viejas. |
 | Módulo de envíos | No implementado (sin número de guía ni seguimiento). |
+| Subresource Integrity | Las páginas cargan Bootstrap y Swiper desde CDN sin atributo `integrity`. Afecta a todo el proyecto, no solo a la pasarela. |
 | Descuento de `negocio.php` | La página anuncia "10% OFF" pero el carrito y el total cobran el precio completo. El descuento hoy es solo visual. |
 | `agregar_carrito.php` | Funciona por GET y sin token CSRF. No es destructivo, pero permite que un tercero agregue productos al carrito de otra persona. |
 | Estilos duplicados | Varias páginas repiten el mismo bloque `<style>` en línea en lugar de usar `style.css`. |

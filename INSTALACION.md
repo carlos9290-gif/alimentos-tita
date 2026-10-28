@@ -159,11 +159,11 @@ con seleccionar mal el texto para que la base quede a medias.
 ### Cómo saber si quedó bien
 
 Con cualquiera de las tres, en la columna izquierda de phpMyAdmin debe aparecer
-la base **`alimentos_tita`** con **9 tablas**:
+la base **`alimentos_tita`** con **10 tablas**:
 
 ```
 admin · carrito · categoria · cliente · contacto
-detalle_pedido · pedido · producto · producto_categoria
+detalle_pedido · pago · pedido · producto · producto_categoria
 ```
 
 Y al entrar a la tabla `producto` deben verse **7 filas** con las empanadas de
@@ -228,10 +228,16 @@ Llena usuario, correo y contraseña (mínimo 8 caracteres).
 | Iniciar sesión | `/inicio_sesion.php` | Vuelves a la portada con tu nombre arriba |
 | Ver catálogo | `/casa.php` | 4 productos con foto y precio |
 | Agregar al carrito | Botón del producto | El carrito muestra el total |
-| Confirmar pedido | `/carrito.php` → Finalizar compra | Te lleva al detalle del pedido |
+| Confirmar pedido | `/carrito.php` → Finalizar compra | Te lleva a la pasarela de pago |
+| Pagar | Pasarela → tarjeta `4111 1111 1111 1111` | El pedido pasa a **Pagado** con una referencia |
 | Panel | `/admin/login_admin.php` | Entras a la gestión |
 
-Si los 6 funcionan, la instalación está completa.
+Si los 7 funcionan, la instalación está completa.
+
+> **La pasarela es un simulador: no cobra dinero real.** Usa solo las tarjetas
+> de prueba que la propia pantalla lista a la derecha; cualquier otra se
+> rechaza a propósito. Para probar un rechazo, usa `4000 0000 0000 0002`.
+> El vencimiento debe ser futuro y el CVV de 3 dígitos.
 
 ---
 

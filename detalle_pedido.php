@@ -38,6 +38,33 @@ $stmtDet = $conn->prepare($sqlDet);
 $stmtDet->bind_param("i", $id_pedido);
 $stmtDet->execute();
 $detalles = $stmtDet->get_result();
+
+// Intentos de pago, el más reciente primero. Un pedido pagado tiene al
+// menos uno aprobado; los rechazados también quedan a la vista porque
+// explican por qué un pedido tardó en pagarse.
+$stmtPagos = $conn->prepare(
+    "SELECT referencia, metodo, estado, detalle, mensaje, fecha_pago
+       FROM pago
+      WHERE id_pedido = ?
+      ORDER BY id_pago DESC"
+);
+$stmtPagos->bind_param("i", $id_pedido);
+$stmtPagos->execute();
+$pagos = $stmtPagos->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmtPagos->close();
+
+$pago_ok    = $_SESSION['pago_ok']    ?? '';
+$pago_error = $_SESSION['pago_error'] ?? '';
+unset($_SESSION['pago_ok'], $_SESSION['pago_error']);
+
+$colores_estado = [
+    'Pendiente' => 'warning text-dark',
+    'Pagado'    => 'success',
+    'Enviado'   => 'info text-dark',
+    'Entregado' => 'primary',
+    'Cancelado' => 'secondary',
+];
+$color_estado = $colores_estado[$pedido['estado']] ?? 'secondary';
 ?>
 
 <!DOCTYPE html>
@@ -95,9 +122,50 @@ $detalles = $stmtDet->get_result();
 
 <h2 class="fw-bold mb-4">📄 Detalle del Pedido #<?= esc($id_pedido) ?></h2>
 
+<?php if ($pago_ok !== ''): ?>
+    <div class="alert alert-success"><?= esc($pago_ok) ?></div>
+<?php endif; ?>
+
+<?php if ($pago_error !== ''): ?>
+    <div class="alert alert-danger"><?= esc($pago_error) ?></div>
+<?php endif; ?>
+
 <p><strong>Fecha:</strong> <?= esc($pedido['fecha_pedido']) ?></p>
-<p><strong>Estado:</strong> <?= esc($pedido['estado']) ?></p>
+<p>
+    <strong>Estado:</strong>
+    <span class="badge bg-<?= $color_estado ?>"><?= esc($pedido['estado']) ?></span>
+</p>
 <p><strong>Dirección:</strong> <?= esc($pedido['direccion_envio']) ?></p>
+
+<?php if ($pedido['estado'] === 'Pendiente'): ?>
+    <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>Este pedido todavía no está pagado. Los productos están reservados para ti.</span>
+        <a href="pasarela.php?id_pedido=<?= (int) $id_pedido ?>" class="btn btn-success">Pagar ahora</a>
+    </div>
+<?php endif; ?>
+
+<?php if ($pagos): ?>
+    <div class="card mt-3 mb-4">
+        <div class="card-header fw-semibold">Pagos</div>
+        <ul class="list-group list-group-flush">
+            <?php foreach ($pagos as $p): ?>
+                <li class="list-group-item">
+                    <span class="badge bg-<?= $p['estado'] === 'Aprobado' ? 'success' : 'danger' ?>">
+                        <?= esc($p['estado']) ?>
+                    </span>
+                    <strong class="ms-1"><?= esc($p['metodo']) ?></strong>
+                    <?php if ($p['detalle']): ?>
+                        <span class="text-muted">— <?= esc($p['detalle']) ?></span>
+                    <?php endif; ?>
+                    <div class="small text-muted"><?= esc($p['mensaje']) ?></div>
+                    <div class="small text-muted">
+                        Referencia <?= esc($p['referencia']) ?> &middot; <?= esc($p['fecha_pago']) ?>
+                    </div>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
 
 <table class="table table-bordered mt-4">
     <thead class="table-warning text-center">

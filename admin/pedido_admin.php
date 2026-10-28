@@ -71,6 +71,18 @@ $resultado = $stmt->get_result();
 
     <h2 class="mb-3 text-center">📦 Gestión de Pedidos</h2>
 
+    <?php
+    $admin_ok    = $_SESSION['admin_ok']    ?? '';
+    $admin_error = $_SESSION['admin_error'] ?? '';
+    unset($_SESSION['admin_ok'], $_SESSION['admin_error']);
+    ?>
+    <?php if ($admin_ok !== ''): ?>
+        <div class="alert alert-success"><?= esc($admin_ok) ?></div>
+    <?php endif; ?>
+    <?php if ($admin_error !== ''): ?>
+        <div class="alert alert-danger"><?= esc($admin_error) ?></div>
+    <?php endif; ?>
+
     <a href="index_admin.php" class="btn btn-warning mb-3">⬅ Volver al Panel</a>
 
 

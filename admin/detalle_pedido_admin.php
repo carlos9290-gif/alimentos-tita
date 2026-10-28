@@ -32,6 +32,19 @@ $stmt2 = $conn->prepare($sqlDet);
 $stmt2->bind_param("i", $id_pedido);
 $stmt2->execute();
 $detalles = $stmt2->get_result();
+
+// INTENTOS DE PAGO
+// Una fila por intento: los rechazos explican por que un pedido sigue
+// pendiente, y son lo primero que se mira ante un reclamo.
+$sqlPagos = "SELECT referencia, metodo, estado, detalle, mensaje, fecha_pago
+             FROM pago
+             WHERE id_pedido = ?
+             ORDER BY id_pago DESC";
+$stmt3 = $conn->prepare($sqlPagos);
+$stmt3->bind_param("i", $id_pedido);
+$stmt3->execute();
+$pagos = $stmt3->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt3->close();
 ?>
 <!DOCTYPE html>
 <html>
@@ -85,6 +98,43 @@ $detalles = $stmt2->get_result();
     </table>
 
     <h3 class="text-end">Total: $<?= number_format($pedido['total'], 0, ',', '.') ?></h3>
+
+    <h5 class="mt-4">Intentos de pago</h5>
+    <?php if (!$pagos): ?>
+        <p class="text-muted">Este pedido no registra ningún intento de pago.</p>
+    <?php else: ?>
+        <table class="table table-sm table-bordered bg-white">
+            <thead class="table-light">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Método</th>
+                    <th>Resultado</th>
+                    <th>Referencia</th>
+                    <th>Respuesta</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($pagos as $p): ?>
+                <tr>
+                    <td><?= esc($p['fecha_pago']) ?></td>
+                    <td>
+                        <?= esc($p['metodo']) ?>
+                        <?php if ($p['detalle']): ?>
+                            <div class="small text-muted"><?= esc($p['detalle']) ?></div>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <span class="badge bg-<?= $p['estado'] === 'Aprobado' ? 'success' : 'danger' ?>">
+                            <?= esc($p['estado']) ?>
+                        </span>
+                    </td>
+                    <td class="small"><?= esc($p['referencia']) ?></td>
+                    <td class="small"><?= esc($p['mensaje']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
 
     <a href="pedido_admin.php" class="btn btn-secondary mt-3">Volver</a>
 

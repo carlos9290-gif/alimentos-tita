@@ -218,6 +218,48 @@ CREATE TABLE IF NOT EXISTS detalle_pedido (
 
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
+-- ---------------------------------------------------------------------
+-- pago
+--   Usada por: pasarela.php -> procesar_pago.php
+--              detalle_pedido.php, admin/detalle_pedido_admin.php
+--
+--   UNA FILA POR INTENTO, no por pedido. Un cliente al que le rechazan
+--   la tarjeta y vuelve a intentar deja dos filas: la rechazada y la
+--   aprobada. Ese historial es justamente lo que registra una pasarela
+--   real, y permite auditar por que un pedido tardo en pagarse.
+--
+--   El pedido se considera pagado por pedido.estado = 'Pagado'. Esta
+--   tabla es el respaldo de ese estado, no la fuente de verdad.
+--
+--   NO se guarda el numero de tarjeta ni el CVV, ni siquiera en el
+--   simulador: solo la marca y los ultimos 4 digitos. Quien pruebe el
+--   sistema va a teclear su tarjeta real alguna vez.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS pago (
+  id_pago      INT           NOT NULL AUTO_INCREMENT,
+  id_pedido    INT           NOT NULL,
+  referencia   VARCHAR(32)   NOT NULL,
+  metodo       ENUM('Tarjeta','PSE','Nequi')   NOT NULL,
+  estado       ENUM('Aprobado','Rechazado')    NOT NULL,
+  monto        DECIMAL(10,2) NOT NULL,
+  marca        VARCHAR(20)   NULL,
+  ultimos4     CHAR(4)       NULL,
+  detalle      VARCHAR(120)  NULL,
+  mensaje      VARCHAR(150)  NOT NULL,
+  fecha_pago   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id_pago),
+  UNIQUE KEY uq_pago_referencia (referencia),
+  KEY idx_pago_pedido (id_pedido),
+  KEY idx_pago_estado (estado),
+
+  CONSTRAINT fk_pago_pedido
+    FOREIGN KEY (id_pedido) REFERENCES pedido (id_pedido)
+    ON DELETE CASCADE ON UPDATE CASCADE
+
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
 
 -- ---------------------------------------------------------------------
 -- contacto
@@ -383,7 +425,14 @@ SET SQL_MODE = @OLD_SQL_MODE;
 --     ponerlo en estado_producto = 'inactivo' (que es justamente para
 --     lo que existe ese campo), no usar admin/eliminar_producto.php.
 --
---  4. Las tablas Pago y Envio del modelo original no se crean porque
---     ninguna pagina las consulta: no hay pasarela de pago ni modulo de
---     envios implementado. Se agregaran cuando exista ese codigo.
+--  4. La tabla pago SI se crea (pasarela.php / procesar_pago.php la
+--     usan). Guarda un intento por fila, no un pago por pedido, para
+--     dejar rastro de los rechazos. La tabla Envio del modelo original
+--     sigue sin crearse: no hay modulo de envios todavia.
+--
+--  5. Un pedido 'Cancelado' es terminal: admin/save_pedido_admin.php no
+--     deja sacarlo de ese estado. Al cancelar se devuelve el stock, y
+--     revivir el pedido obligaria a volver a descontarlo cuando quiza
+--     ya no haya. Si hace falta, se crea un pedido nuevo.
+--
 -- =====================================================================

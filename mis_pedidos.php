@@ -88,8 +88,27 @@ $resultado = $stmt->get_result();
                     <td><?= esc($row['id_pedido']) ?></td>
                     <td><?= esc($row['fecha_pedido']) ?></td>
                     <td>$<?php echo number_format($row['total'], 0, ',', '.'); ?></td>
-                    <td><?= esc($row['estado']) ?></td>
-                    <td><a class="btn btn-warning btn-sm" href="detalle_pedido.php?id_pedido=<?= (int) $row['id_pedido'] ?>">Ver</a></td>
+                    <td>
+                        <?php
+                        // Color segun el estado, para que se lea de un vistazo
+                        // cual falta por pagar.
+                        $colores = [
+                            'Pendiente' => 'warning text-dark',
+                            'Pagado'    => 'success',
+                            'Enviado'   => 'info text-dark',
+                            'Entregado' => 'primary',
+                            'Cancelado' => 'secondary',
+                        ];
+                        $color = $colores[$row['estado']] ?? 'secondary';
+                        ?>
+                        <span class="badge bg-<?= $color ?>"><?= esc($row['estado']) ?></span>
+                    </td>
+                    <td>
+                        <a class="btn btn-warning btn-sm" href="detalle_pedido.php?id_pedido=<?= (int) $row['id_pedido'] ?>">Ver</a>
+                        <?php if ($row['estado'] === 'Pendiente'): ?>
+                            <a class="btn btn-success btn-sm" href="pasarela.php?id_pedido=<?= (int) $row['id_pedido'] ?>">Pagar</a>
+                        <?php endif; ?>
+                    </td>
                 </tr>
             <?php endwhile; ?>
             </tbody>

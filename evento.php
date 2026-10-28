@@ -211,8 +211,8 @@ while ($fila = $resultado->fetch_assoc()) {
         <div class="card-body bg-warning rounded-bottom-3">
           <h2 class="card-title text-center text-dark">¿Cómo Pagar Mi Pedido en Línea?</h2>
           <p class="card-text text-center mb-0">
-            Haz tu Pedido y cancela por PSE, PayU, Tarjetas Crédito y Débito,
-            Bancolombia, Nequi, Daviplata.
+            Haz tu Pedido y paga en línea con Tarjeta de Crédito o Débito,
+            PSE o Nequi.
           </p>
         </div>
       </div>

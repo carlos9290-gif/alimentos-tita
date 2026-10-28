@@ -150,7 +150,10 @@ try {
     // El pedido salio: no dejar colgado ningun aviso del carrito.
     unset($_SESSION["carrito_ok"], $_SESSION["carrito_error"]);
 
-    header("Location: detalle_pedido.php?id_pedido=" . $id_pedido);
+    // El pedido queda 'Pendiente' con el stock ya reservado. Ahora va a
+    // la pasarela; si el cliente no paga, puede cancelarlo desde alli y
+    // el stock vuelve (cancelar_pedido.php).
+    header("Location: pasarela.php?id_pedido=" . $id_pedido);
     exit();
 
 } catch (mysqli_sql_exception $e) {
